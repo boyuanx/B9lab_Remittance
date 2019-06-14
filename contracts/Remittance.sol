@@ -10,7 +10,7 @@ contract Remittance is Stoppable {
     using SafeMath for uint;
 
     OTP_Gen otp;
-    mapping (address => TxInfo[]) TxLUT; // Repicient address => TxInfo[]
+    mapping (address => TxInfo[]) TxLUT; // Recipient address => TxInfo[]
     event LogDepositCompleted(address indexed sender, address indexed recipient, uint amount, uint deadline);
     event LogWithdrawalComplete(address indexed recipient, uint amount);
 
