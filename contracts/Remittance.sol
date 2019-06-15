@@ -9,7 +9,6 @@ contract Remittance is Stoppable {
 
     using SafeMath for uint;
 
-    OTP_Gen otp;
     mapping (address => TxInfo[]) TxLUT; // Recipient address => TxInfo[]
     event LogDepositCompleted(address indexed sender, address indexed recipient, uint amount, uint deadline);
     event LogWithdrawalComplete(address indexed recipient, uint amount);
@@ -22,9 +21,7 @@ contract Remittance is Stoppable {
         bytes32 pw2Hash;
     }
 
-    constructor(bool initialRunState) public Stoppable(initialRunState) {
-        otp = new OTP_Gen();
-    }
+    constructor(bool initialRunState) public Stoppable(initialRunState) {}
 
     modifier sufficientIncomingFunds {
         require(msg.value > 0,"E_IF");
@@ -33,8 +30,8 @@ contract Remittance is Stoppable {
 
     function deposit(address dst, uint deadline, string memory password1, string memory password2)
     public payable onlyIfRunning addressNonZero(dst) sufficientIncomingFunds returns(bool success) {
-        bytes32 pw1Hash = otp.generate(dst, password1);
-        bytes32 pw2Hash = otp.generate(dst, password2);
+        bytes32 pw1Hash = OTP_Gen.generate(dst, password1);
+        bytes32 pw2Hash = OTP_Gen.generate(dst, password2);
         if (findTxInfo(dst, pw1Hash, pw2Hash) != 2**256-1) {
             revert("E_TAE");
         }
@@ -46,7 +43,7 @@ contract Remittance is Stoppable {
 
     function withdraw(string memory password1, string memory password2)
     public onlyIfRunning returns (bool success) {
-        uint TxIndex = findTxInfo(msg.sender, otp.generate(msg.sender, password1), otp.generate(msg.sender, password2));
+        uint TxIndex = findTxInfo(msg.sender, OTP_Gen.generate(msg.sender, password1), OTP_Gen.generate(msg.sender, password2));
         if (TxIndex == 2**256-1) {
             revert("E_TNF");
         }
@@ -64,7 +61,7 @@ contract Remittance is Stoppable {
 
     function reverseDeposit(address dst, string memory password1, string memory password2)
     public onlyIfRunning addressNonZero(dst) returns (bool success) {
-        uint TxIndex = findTxInfo(dst, otp.generate(dst, password1), otp.generate(dst, password2));
+        uint TxIndex = findTxInfo(dst, OTP_Gen.generate(dst, password1), OTP_Gen.generate(dst, password2));
         if (TxIndex == 2**256-1) {
             revert("E_TNF");
         }
