@@ -19,6 +19,10 @@ contract Ownable {
         owner = msg.sender;
     }
 
+    function getOwner() public view returns(address) {
+        return owner;
+    }
+
     function changeOwner(address newOwner) public addressNonZero(newOwner) onlyOwnerAccess returns(bool success) {
         owner = newOwner;
         emit LogOwnerChanged(msg.sender, newOwner);
