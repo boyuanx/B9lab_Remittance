@@ -2,19 +2,16 @@ const Remittance = artifacts.require("Remittance");
 const OTP = artifacts.require("OTP");
 const truffleAssert = require("truffle-assertions");
 
-contract("Remittance", accounts => {
+contract("Remittance", async (accounts) => {
     const [alice, carol, dylan] = accounts;
     const { BN, toWei } = web3.utils;
     const deposit = toWei("10", "GWei");
-    let _otp, bobSeed, carolSeed, depositHash, remittance;
+    const _otp = await OTP.new({ from: alice });
+    const bobSeed = await _otp.stringToBytes32Hash("bobPW", { from: carol });
+    const carolSeed = await _otp.stringToBytes32Hash("carolPW", { from: carol });
+    let depositHash, remittance;
 
     describe("normal cases", () => {
-        before("do some initialization work", async () => {
-            _otp = await OTP.new({ from: alice });
-            bobSeed = "bobPW";
-            carolSeed = "carolPW";
-        })
-
         beforeEach("do some initialization work", async () => {
             remittance = await Remittance.new(true, { from: alice });
             depositHash = await _otp.generate(remittance.address, carol, bobSeed, carolSeed, { from: alice });
@@ -62,7 +59,7 @@ contract("Remittance", accounts => {
 
         it("shouldn't allow people accessing other people's deposits even with their password stolen", async () => {
             await remittance.deposit(carol, 0, depositHash, { from: alice, value: deposit });
-            truffleAssert.reverts(remittance.withdraw(bobSeed, carolSeed, { from: dylan }), "E_UA");
+            truffleAssert.reverts(remittance.withdraw(bobSeed, carolSeed, { from: dylan }), "E_EF");
             await remittance.withdraw(bobSeed, carolSeed, { from: carol });
         })
     })

@@ -28,13 +28,13 @@ contract Remittance is Stoppable {
         _;
     }
 
-    modifier txExists(bytes32 pwHash) {
-        require(txExistsHelper(pwHash), "E_TNF");
+    modifier onlyIfTxExists(bytes32 pwHash) {
+        require(txExists(pwHash), "E_TNF");
         _;
     }
 
     // Helper function to find a Tx struct
-    function txExistsHelper(bytes32 pwHash)
+    function txExists(bytes32 pwHash)
     public view onlyIfRunning returns (bool) {
         return ((remittances[pwHash].sender != address(0)) && (remittances[pwHash].dst != address(0)));
     }
@@ -42,7 +42,8 @@ contract Remittance is Stoppable {
     // Called by Alice.
     function deposit(address payable dst, uint deadline, bytes32 pwHash)
     public payable onlyIfRunning addressNonZero(dst) sufficientIncomingFunds returns(bool success) {
-        require(!txExistsHelper(pwHash), "E_TAE");
+        require(pwHash != 0, "E_EH");
+        require(!txExists(pwHash), "E_TAE");
         require((deadline == 0) || (deadline > block.number), "E_DE");
         remittances[pwHash] = TxInfo(msg.sender, dst, msg.value, deadline);
         emit LogDeposited(msg.sender, dst, msg.value, deadline);
@@ -50,27 +51,32 @@ contract Remittance is Stoppable {
     }
 
     // Called by Carol (with Bob).
-    function withdraw(string memory fiatSeed, string memory exchangeSeed)
+    function withdraw(bytes32 fiatSeed, bytes32 exchangeSeed)
     public onlyIfRunning returns (bool success) {
-        TxInfo memory t = remittances[OTP.generate(address(this), msg.sender, fiatSeed, exchangeSeed)];
-        require(t.dst == msg.sender, "E_UA");
+        bytes32 hash = OTP.generate(address(this), msg.sender, fiatSeed, exchangeSeed);
+        TxInfo memory t = remittances[hash];
         require(t.amount > 0, "E_EF");
         require((t.deadline == 0) || (t.deadline <= block.number), "E_TE");
-        
-        emit LogWithdrew(t.sender, t.dst, t.amount);
-        t.dst.transfer(t.amount);
+        uint amountToTransfer = t.amount;
+        t.amount = 0;
+        remittances[hash] = t;
+        emit LogWithdrew(t.sender, t.dst, amountToTransfer);
+        t.dst.transfer(amountToTransfer);
         return true;
     }
 
     // Only called by Alice to reclaim funds.
     function reclaim(bytes32 pwHash)
-    public onlyIfRunning txExists(pwHash) returns (bool success) {
+    public onlyIfRunning onlyIfTxExists(pwHash) returns (bool success) {
         TxInfo memory t = remittances[pwHash];
         require(t.sender == msg.sender, "E_UA");
         require(t.amount > 0, "E_EF");
         require((t.deadline <= block.number) && (t.deadline != 0), "E_TNE");
-        emit LogReclaimed(t.sender, t.dst, t.amount, t.deadline);
-        msg.sender.transfer(t.amount);
+        uint amountToTransfer = t.amount;
+        t.amount = 0;
+        remittances[pwHash] = t;
+        emit LogReclaimed(t.sender, t.dst, amountToTransfer, t.deadline);
+        msg.sender.transfer(amountToTransfer);
         return true;
     }
 }
