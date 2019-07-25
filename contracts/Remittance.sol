@@ -3,7 +3,7 @@ pragma solidity ^0.5.0;
 import "./SafeMath.sol";
 import "./Ownable.sol";
 import "./Stoppable.sol";
-import "./OTP_Gen.sol";
+import "./OTP.sol";
 
 contract Remittance is Stoppable {
 
@@ -24,7 +24,7 @@ contract Remittance is Stoppable {
     constructor(bool initialRunState) public Stoppable(initialRunState) {}
 
     modifier sufficientIncomingFunds {
-        require(msg.value > 0,"E_IF");
+        require(msg.value > 0, "E_IF");
         _;
     }
 
@@ -36,7 +36,7 @@ contract Remittance is Stoppable {
     // Helper function to find a Tx struct
     function txExistsHelper(bytes32 pwHash)
     public view onlyIfRunning returns (bool) {
-        return ((txMap[pwHash].sender == address(0)) && (txMap[pwHash].dst == address(0)));
+        return ((txMap[pwHash].sender != address(0)) && (txMap[pwHash].dst != address(0)));
     }
 
     // Called by Alice.
@@ -52,7 +52,7 @@ contract Remittance is Stoppable {
     // Called by Carol (with Bob).
     function withdraw(string memory fiatSeed, string memory exchangeSeed)
     public onlyIfRunning returns (bool success) {
-        TxInfo memory t = txMap[OTP_Gen.generate(msg.sender, fiatSeed, exchangeSeed)];
+        TxInfo memory t = txMap[OTP.generate(msg.sender, fiatSeed, exchangeSeed)];
         require(t.dst == msg.sender, "E_UA");
         require(t.amount > 0, "E_EF");
         require((t.deadline == 0) || (t.deadline <= block.number), "E_TE");
