@@ -52,7 +52,7 @@ contract Remittance is Stoppable {
     // Called by Carol (with Bob).
     function withdraw(string memory fiatSeed, string memory exchangeSeed)
     public onlyIfRunning returns (bool success) {
-        TxInfo memory t = txMap[OTP.generate(msg.sender, fiatSeed, exchangeSeed)];
+        TxInfo memory t = txMap[OTP.generate(address(this), msg.sender, fiatSeed, exchangeSeed)];
         require(t.dst == msg.sender, "E_UA");
         require(t.amount > 0, "E_EF");
         require((t.deadline == 0) || (t.deadline <= block.number), "E_TE");

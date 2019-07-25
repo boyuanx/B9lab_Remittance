@@ -13,11 +13,11 @@ contract("Remittance", accounts => {
             _otp = await OTP.new({ from: alice });
             bobSeed = "bobPW";
             carolSeed = "carolPW";
-            depositHash = await _otp.generate(carol, bobSeed, carolSeed, { from: alice });
         })
 
         beforeEach("do some initialization work", async () => {
             remittance = await Remittance.new(true, { from: alice });
+            depositHash = await _otp.generate(remittance.address, carol, bobSeed, carolSeed, { from: alice });
         })
 
         it("should allow Alice to make a deposit and emit the correct event", async () => {
