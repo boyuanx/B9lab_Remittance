@@ -9,7 +9,7 @@ contract Remittance is Stoppable {
 
     using SafeMath for uint;
 
-    mapping (bytes32 => TxInfo) txMap; // Hash => TxInfo
+    mapping (bytes32 => TxInfo) remittances;
     event LogDeposited(address indexed sender, address indexed dst, uint amount, uint deadline);
     event LogWithdrew(address indexed sender, address indexed dst, uint amount);
     event LogReclaimed(address indexed sender, address indexed dst, uint amount, uint deadline);
@@ -36,7 +36,7 @@ contract Remittance is Stoppable {
     // Helper function to find a Tx struct
     function txExistsHelper(bytes32 pwHash)
     public view onlyIfRunning returns (bool) {
-        return ((txMap[pwHash].sender != address(0)) && (txMap[pwHash].dst != address(0)));
+        return ((remittances[pwHash].sender != address(0)) && (remittances[pwHash].dst != address(0)));
     }
 
     // Called by Alice.
@@ -44,7 +44,7 @@ contract Remittance is Stoppable {
     public payable onlyIfRunning addressNonZero(dst) sufficientIncomingFunds returns(bool success) {
         require(!txExistsHelper(pwHash), "E_TAE");
         require((deadline == 0) || (deadline > block.number), "E_DE");
-        txMap[pwHash] = TxInfo(msg.sender, dst, msg.value, deadline);
+        remittances[pwHash] = TxInfo(msg.sender, dst, msg.value, deadline);
         emit LogDeposited(msg.sender, dst, msg.value, deadline);
         return true;
     }
@@ -52,7 +52,7 @@ contract Remittance is Stoppable {
     // Called by Carol (with Bob).
     function withdraw(string memory fiatSeed, string memory exchangeSeed)
     public onlyIfRunning returns (bool success) {
-        TxInfo memory t = txMap[OTP.generate(address(this), msg.sender, fiatSeed, exchangeSeed)];
+        TxInfo memory t = remittances[OTP.generate(address(this), msg.sender, fiatSeed, exchangeSeed)];
         require(t.dst == msg.sender, "E_UA");
         require(t.amount > 0, "E_EF");
         require((t.deadline == 0) || (t.deadline <= block.number), "E_TE");
@@ -65,7 +65,7 @@ contract Remittance is Stoppable {
     // Only called by Alice to reclaim funds.
     function reclaim(bytes32 pwHash)
     public onlyIfRunning txExists(pwHash) returns (bool success) {
-        TxInfo memory t = txMap[pwHash];
+        TxInfo memory t = remittances[pwHash];
         require(t.sender == msg.sender, "E_UA");
         require(t.amount > 0, "E_EF");
         require((t.deadline <= block.number) && (t.deadline != 0), "E_TNE");
