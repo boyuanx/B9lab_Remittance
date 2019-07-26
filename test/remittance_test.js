@@ -6,15 +6,14 @@ contract("Remittance", async (accounts) => {
     const [alice, carol, dylan] = accounts;
     const { BN, toWei } = web3.utils;
     const deposit = toWei("10", "GWei");
-    const _otp = await OTP.new({ from: alice });
+    const _otp = await OTP.deployed();
     const bobSeed = await _otp.stringToBytes32Hash("bobPW", { from: carol });
-    const carolSeed = await _otp.stringToBytes32Hash("carolPW", { from: carol });
     let depositHash, remittance;
 
     describe("normal cases", () => {
         beforeEach("do some initialization work", async () => {
             remittance = await Remittance.new(true, { from: alice });
-            depositHash = await _otp.generate(remittance.address, carol, bobSeed, carolSeed, { from: alice });
+            depositHash = await _otp.generate(remittance.address, carol, bobSeed, { from: alice });
         })
 
         it("should allow Alice to make a deposit and emit the correct event", async () => {
@@ -23,7 +22,8 @@ contract("Remittance", async (accounts) => {
                 return (ev.sender == alice)
                 && (ev.dst == carol)
                 && (ev.amount == deposit)
-                && (ev.deadline == 0);
+                && (ev.deadline == 0)
+                && (ev.hash == depositHash);
             });
         })
 
@@ -40,14 +40,15 @@ contract("Remittance", async (accounts) => {
         it("should let bob & carol withdraw correctly and emit the correct events", async () => {
             const carolBalance = await web3.eth.getBalance(carol);
             await remittance.deposit(carol, 0, depositHash, { from: alice, value: deposit });
-            const tx = await remittance.withdraw(bobSeed, carolSeed, { from: carol });
+            const tx = await remittance.withdraw(bobSeed, { from: carol });
             const gasUsed = tx.receipt.gasUsed;
             const gasPrice = (await web3.eth.getTransaction(tx.tx)).gasPrice;
             const carolNewBalance = await web3.eth.getBalance(carol);
             truffleAssert.eventEmitted(tx, "LogWithdrew", (ev) => {
                 return (ev.sender == alice)
                 && (ev.dst == carol)
-                && (ev.amount == deposit);
+                && (ev.amount == deposit)
+                && (ev.hash == depositHash);
             })
             assert.strictEqual(carolNewBalance, (new BN(carolBalance)).add(new BN(deposit)).sub(new BN(gasPrice*gasUsed)).toString(10));
         })
@@ -57,10 +58,21 @@ contract("Remittance", async (accounts) => {
             truffleAssert.reverts(remittance.reclaim(depositHash, { from: alice }), "E_TNE");
         })
 
+        it("should let Alice reclaim expired deposits", async () => {
+            const futureBlockNumber = await web3.eth.getBlockNumber() + 2;
+            await remittance.deposit(carol, futureBlockNumber, depositHash, { from: alice, value: deposit });
+            web3.currentProvider.send({
+                jsonrpc: "2.0",
+                method: "evm_mine",
+                id: 5777
+            }, function(err) { if (err) { console.log(err); }});
+            remittance.reclaim(depositHash, { from: alice });
+        })
+
         it("shouldn't allow people accessing other people's deposits even with their password stolen", async () => {
             await remittance.deposit(carol, 0, depositHash, { from: alice, value: deposit });
-            truffleAssert.reverts(remittance.withdraw(bobSeed, carolSeed, { from: dylan }), "E_EF");
-            await remittance.withdraw(bobSeed, carolSeed, { from: carol });
+            truffleAssert.reverts(remittance.withdraw(bobSeed, { from: dylan }), "E_EF");
+            await remittance.withdraw(bobSeed, { from: carol });
         })
     })
 })
