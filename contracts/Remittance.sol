@@ -10,13 +10,12 @@ contract Remittance is Stoppable {
     using SafeMath for uint;
 
     mapping (bytes32 => TxInfo) remittances;
-    event LogDeposited(address indexed sender, address indexed dst, uint amount, uint deadline, bytes32 indexed hash);
-    event LogWithdrew(address indexed sender, address indexed dst, uint amount, bytes32 indexed hash);
-    event LogReclaimed(address indexed sender, address indexed dst, uint amount, uint deadline, bytes32 indexed hash);
+    event LogDeposited(address indexed sender, uint amount, uint deadline, bytes32 indexed hash);
+    event LogWithdrew(address indexed sender, uint amount, bytes32 indexed hash);
+    event LogReclaimed(address indexed sender, uint amount, uint deadline, bytes32 indexed hash);
 
     struct TxInfo {
         address payable sender;
-        address payable dst;
         uint amount;
         uint deadline;
     }
@@ -36,17 +35,17 @@ contract Remittance is Stoppable {
     // Helper function to find a Tx struct
     function txExists(bytes32 pwHash)
     public view onlyIfRunning returns (bool) {
-        return ((remittances[pwHash].sender != address(0)) && (remittances[pwHash].dst != address(0)));
+        return remittances[pwHash].sender != address(0);
     }
 
     // Called by Alice.
-    function deposit(address payable dst, uint deadline, bytes32 pwHash)
-    public payable onlyIfRunning addressNonZero(dst) sufficientIncomingFunds returns(bool success) {
+    function deposit(uint deadline, bytes32 pwHash)
+    public payable onlyIfRunning sufficientIncomingFunds returns(bool success) {
         require(pwHash != 0, "E_EH");
         require(!txExists(pwHash), "E_TAE");
         require((deadline == 0) || (deadline > block.number), "E_DE");
-        remittances[pwHash] = TxInfo(msg.sender, dst, msg.value, deadline);
-        emit LogDeposited(msg.sender, dst, msg.value, deadline, pwHash);
+        remittances[pwHash] = TxInfo(msg.sender, msg.value, deadline);
+        emit LogDeposited(msg.sender, msg.value, deadline, pwHash);
         return true;
     }
 
@@ -58,7 +57,7 @@ contract Remittance is Stoppable {
         require(t.amount > 0, "E_EF");
         require((t.deadline == 0) || (t.deadline <= block.number), "E_TE");
         remittances[hash].amount = 0;
-        emit LogWithdrew(t.sender, t.dst, t.amount, hash);
+        emit LogWithdrew(t.sender, t.amount, hash);
         msg.sender.transfer(t.amount);
         return true;
     }
@@ -71,7 +70,7 @@ contract Remittance is Stoppable {
         require(t.amount > 0, "E_EF");
         require((t.deadline <= block.number) && (t.deadline != 0), "E_TNE");
         remittances[pwHash].amount = 0;
-        emit LogReclaimed(t.sender, t.dst, t.amount, t.deadline, pwHash);
+        emit LogReclaimed(t.sender, t.amount, t.deadline, pwHash);
         msg.sender.transfer(t.amount);
         return true;
     }
