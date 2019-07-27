@@ -13,7 +13,7 @@ contract("Remittance", async (accounts) => {
 
     describe("normal cases", () => {
         beforeEach("do some initialization work", async () => {
-            remittance = await Remittance.new(true, { from: alice });
+            remittance = await Remittance.new(true, 35040, { from: alice });
             depositHash = await _otp.generate(remittance.address, carol, bobSeed, { from: alice });
         })
 

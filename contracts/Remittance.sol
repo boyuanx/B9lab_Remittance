@@ -22,9 +22,9 @@ contract Remittance is Stoppable {
         uint deadline;
     }
 
-    constructor(bool initialRunState) public Stoppable(initialRunState) {
+    constructor(bool initialRunState, uint deadlineDelay) public Stoppable(initialRunState) {
         canDeposit = true;
-        defaultDeadlineDelay = 35040; // 1 year of blocks
+        defaultDeadlineDelay = deadlineDelay;
     }
 
     modifier sufficientIncomingFunds {
@@ -64,7 +64,7 @@ contract Remittance is Stoppable {
         require((deadline > block.number) || (deadline == 0), "E_DE");
         uint actualDeadline;
         if (deadline == 0) {
-            actualDeadline = block.number + defaultDeadlineDelay;
+            actualDeadline = block.number.add(defaultDeadlineDelay);
         } else {
             actualDeadline = deadline;
         }
