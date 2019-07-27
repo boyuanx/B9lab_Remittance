@@ -7,6 +7,7 @@ contract("Remittance", async (accounts) => {
     const { BN, toWei } = web3.utils;
     const deposit = toWei("10", "GWei");
     const _otp = await OTP.deployed();
+    //await Remittance.link(_otp);
     const bobSeed = await _otp.stringToBytes32Hash("bobPW", { from: carol });
     let depositHash, remittance;
 
@@ -16,12 +17,13 @@ contract("Remittance", async (accounts) => {
             depositHash = await _otp.generate(remittance.address, carol, bobSeed, { from: alice });
         })
 
-        it("should allow Alice to make a deposit and emit the correct event", async () => {
+        it("should allow Alice to make a deposit and emit the correct event with a modified default deadline", async () => {
+            await remittance.setDefaultDeadlineDelay(10, { from: alice });
             const tx = await remittance.deposit(0, depositHash, { from: alice, value: deposit });
             truffleAssert.eventEmitted(tx, "LogDeposited", (ev) => {
                 return (ev.sender == alice)
                 && (ev.amount == deposit)
-                && (ev.deadline == 0)
+                && (ev.deadline == tx.receipt.blockNumber + 10)
                 && (ev.hash == depositHash);
             });
         })
@@ -70,6 +72,13 @@ contract("Remittance", async (accounts) => {
         it("shouldn't allow people accessing other people's deposits even with their password stolen", async () => {
             await remittance.deposit(0, depositHash, { from: alice, value: deposit });
             truffleAssert.reverts(remittance.withdraw(bobSeed, { from: dylan }), "E_EF");
+            await remittance.withdraw(bobSeed, { from: carol });
+        })
+
+        it("shouldn't let people deposit when deposit is closed but shouldn't affect withdraw", async () => {
+            await remittance.deposit(0, depositHash, { from: alice, value: deposit });
+            await remittance.depositSwitch(false, { from: alice });
+            truffleAssert.reverts(remittance.deposit(0, depositHash, { from: alice, value: deposit }), "E_DD");
             await remittance.withdraw(bobSeed, { from: carol });
         })
     })
