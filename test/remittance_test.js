@@ -7,7 +7,7 @@ contract("Remittance", async (accounts) => {
     const { BN, toWei } = web3.utils;
     const deposit = toWei("10", "GWei");
     const _otp = await OTP.deployed();
-    //await Remittance.link(_otp);
+    await Remittance.link("OTP", _otp.address);
     const bobSeed = await _otp.stringToBytes32Hash("bobPW", { from: carol });
     let depositHash, remittance;
 
