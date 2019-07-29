@@ -9,7 +9,6 @@ contract Remittance is Stoppable {
 
     using SafeMath for uint;
 
-    bool public canDeposit;
     uint public defaultDeadlineDelay;
     mapping (bytes32 => TxInfo) public remittances;
     event LogDeposited(address indexed sender, uint amount, uint deadline, bytes32 indexed hash);
@@ -23,7 +22,6 @@ contract Remittance is Stoppable {
     }
 
     constructor(bool initialRunState, uint deadlineDelay) public Stoppable(initialRunState) {
-        canDeposit = true;
         defaultDeadlineDelay = deadlineDelay;
     }
 
@@ -49,16 +47,9 @@ contract Remittance is Stoppable {
         return true;
     }
 
-    function depositSwitch(bool _canDeposit)
-    public onlyIfRunning onlyOwnerAccess returns(bool status) {
-        canDeposit = _canDeposit;
-        return canDeposit;
-    }
-
     // Called by Alice.
     function deposit(uint deadline, bytes32 pwHash)
     public payable onlyIfRunning sufficientIncomingFunds returns(bool success) {
-        require(canDeposit, "E_DD");
         require(pwHash != 0, "E_EH");
         require(!txExists(pwHash), "E_TAE");
         require((deadline > block.number) || (deadline == 0), "E_DE");
@@ -79,7 +70,7 @@ contract Remittance is Stoppable {
 
     // Called by Carol (with Bob).
     function withdraw(bytes32 fiatSeed)
-    public onlyIfRunning returns (bool success) {
+    public returns (bool success) {
         bytes32 hash = OTP.generate(address(this), msg.sender, fiatSeed);
         TxInfo memory t = remittances[hash];
         require(t.amount > 0, "E_EF");
@@ -92,8 +83,9 @@ contract Remittance is Stoppable {
     }
 
     // Only called by Alice to reclaim funds.
+    // Can be called even when the contract is killed, by design.
     function reclaim(bytes32 pwHash)
-    public onlyIfRunning onlyIfTxExists(pwHash) returns (bool success) {
+    public onlyIfTxExists(pwHash) returns (bool success) {
         TxInfo memory t = remittances[pwHash];
         require(t.sender == msg.sender, "E_UA");
         require(t.amount > 0, "E_EF");

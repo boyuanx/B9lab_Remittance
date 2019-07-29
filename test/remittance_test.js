@@ -77,8 +77,9 @@ contract("Remittance", async (accounts) => {
 
         it("shouldn't let people deposit when deposit is closed but shouldn't affect withdraw", async () => {
             await remittance.deposit(0, depositHash, { from: alice, value: deposit });
-            await remittance.depositSwitch(false, { from: alice });
-            truffleAssert.reverts(remittance.deposit(0, depositHash, { from: alice, value: deposit }), "E_DD");
+            await remittance.pauseContract({ from: alice });
+            await remittance.killContract({ from: alice });
+            truffleAssert.reverts(remittance.deposit(0, depositHash, { from: alice, value: deposit }), "E_NR");
             await remittance.withdraw(bobSeed, { from: carol });
         })
     })
