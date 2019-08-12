@@ -39,3 +39,31 @@ Stretch goals:
 - Make the contract a utility that can be used by David, Emma and anybody with an address
 - Make you, the owner of the contract, take a cut of the Ethers. How much? Your call. Perhaps smaller than what it would cost Alice to deploy the same contract herself
 - Did you degrade safety in the name of adding features?
+
+# Low Difficulty
+
+- Did you make sure to have a single source of hashing truth, or do you have 2 different algorithms in Solidity and Javascript that happen to yield same results?
+
+# Medium Difficulty
+
+- Did you store supposedly secret information in the contract?
+- Did you understand a private statement a bit too literally?
+- Did you send passwords in the clear too early?
+- Did you cover the game theoretic elements right?
+- Did you prevent sabotage / overwriting?
+- Did you keep off-chain what can be kept off-chain?
+
+# High Difficulty
+
+- Did you let passwords be reused?
+- Did you think about miners possibly front-running your users with a competing transaction?
+- When you prevent an action < deadline and the other > deadline, did you actually mean to prevent anything happening at == deadline?
+
+# Before moving on
+
+In the next module, you will work on your last small project. As previously, we would like you to take your Remittance to a satisfactory level. And this level is:
+
+- Proper Solidity code.
+- Game theoretic situations covered.
+- Hash complexity covered.
+- Reasonable number of unit tests that cover regular situations.
